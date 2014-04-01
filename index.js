@@ -169,17 +169,16 @@ function render() {
     camera.position.y = sphere.position.z + 5 * Math.sin( .7 * clock.getElapsedTime() );
     camera.lookAt( cube.position );
     cube.rotation.x += 0.2 / (compute);
-    var test = compute/5 *0xCC | 0;
+    /*var test = compute/5 *0xFF | 0;
     var grayscale = (test << 16) | (test << 8) | test;
     if(compute < 4) {
-        renderer.setClearColor( grayscale , 1 );
+        renderer.setClearColor( grayscale , 0.7 );
     } else {
         renderer.setClearColor( 0x000000 , 0 );
-    }
+    }*/
 
     particleSystem.rotation.z += 0.01;
-
-    threshold(compute*10);
+    threshold(Math.exp(compute*1.3));
     //ctx.drawImage(v, 0, 0, winWidth, vHeight);
     ctx.drawImage(c2, 0, 0, winWidth, vHeight);
 
