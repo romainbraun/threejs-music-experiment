@@ -1,6 +1,6 @@
 var scene 			= new THREE.Scene(),
 	camera 			= new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000),
-	renderer 		= new THREE.WebGLRenderer(),
+	renderer 		= new THREE.WebGLRenderer({alpha: true}),
     clock 			= new THREE.Clock(),
     sphereGeometry 	= new THREE.IcosahedronGeometry( 2, 2 ),
     cubeGeometry 	= new THREE.CubeGeometry( 1, 1, 1 ),
@@ -24,11 +24,13 @@ var scene 			= new THREE.Scene(),
 	volume 			= context.createGain();
     //renderTarget, effectSave, effectBlend, composer;
 
-
+var c, ctx, c2, ctx2, v, winWidth, winHeight, vHeight, c2Width, c2Height, ratio, animation;
 
 
 function init() {
-    renderer.setSize(window.innerWidth, window.innerHeight);
+	winWidth = window.innerWidth;
+	winHeight = window.innerHeight;
+    renderer.setSize(winWidth, winHeight);
     document.body.appendChild(renderer.domElement);
     
     scene.add(sphere);
@@ -56,7 +58,15 @@ function init() {
 	particleSystem.sortParticles = true;
 
 	// add it to the scene
-	scene.add(particleSystem);
+	//scene.add(particleSystem);
+
+	v = document.createElement('video');
+	v.src = 'beast.ogv';
+	v.autoplay = true;
+	v.loop = true;
+	v.muted = true;
+
+	v.addEventListener("loadedmetadata", vidLoaded, false);
 
     //renderer.autoClear = false;
 
@@ -92,6 +102,37 @@ function init() {
     initUserMedia();
 }
 
+function vidLoaded() {
+	ratio = v.videoHeight / v.videoWidth;
+	vHeight = winWidth * ratio;
+	v.width = winWidth;
+	v.height = vHeight;
+
+	createCanvas();
+}
+
+function createCanvas() {
+	c = document.createElement('canvas');
+	ctx = c.getContext('2d');
+	c.width = winWidth;
+	c.height = winHeight;
+	c.style.position = 'absolute';
+	c.style.top = 0;
+	c.style.left = 0;
+	c.style.zIndex = 0;
+
+	document.body.appendChild(c);
+
+	c2 = document.createElement('canvas');
+	ctx2 = c2.getContext('2d');
+	c2Width = Math.floor(winWidth / 4);
+	c2Height = (winWidth / 4) * ratio;
+	c2.width = c2Width;
+	c2.height = c2Height;
+
+	render();
+}
+
 function initUserMedia() {
 	navigator.getUserMedia_ = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
 	
@@ -101,7 +142,6 @@ function initUserMedia() {
 	    console.log(err);
 	});
 	analyser.smoothingTimeConstant = 0.6;
-	render();
 }
 
 function startaudio(stream) {
@@ -134,12 +174,40 @@ function render() {
     if(compute < 4) {
         renderer.setClearColor( grayscale , 1 );
     } else {
-        renderer.setClearColor( 0x000000 , 1 );
+        renderer.setClearColor( 0x000000 , 0 );
     }
 
     particleSystem.rotation.z += 0.01;
 
+    threshold(compute*10);
+    //ctx.drawImage(v, 0, 0, winWidth, vHeight);
+    ctx.drawImage(c2, 0, 0, winWidth, vHeight);
+
 	renderer.render(scene, camera);
+}
+
+function threshold(t) {
+	var pixelData = getPixelData();
+	var pixelDataLen = pixelData.data.length;
+	for (var i = 0; i < pixelDataLen; i += 4 ) {
+		// Get the RGB values for this pixel
+		var r = pixelData.data[i];
+		var g = pixelData.data[i+1];
+		var b = pixelData.data[i+2];
+		// Compare each pixel's greyscale value to the threshold value...
+		var value = (0.2126 * r + 0.7152 * g + 0.0722 * b >= t) ? 255 : 0;
+		// ...and set the colour based on the result
+		pixelData.data[i] = pixelData.data[i+1] = pixelData.data[i+2] = value;
+	}
+	// Draw the data on the visible canvas
+	ctx2.putImageData(pixelData, 0, 0);
+}
+
+function getPixelData() {
+	// Draw the video onto the backing canvas
+	ctx2.drawImage(v, 0, 0, c2Width, c2Height);
+	// Grab the pixel data and work on that directly
+	return ctx2.getImageData(0, 0, c2Width, c2Height);
 }
 
 init();
