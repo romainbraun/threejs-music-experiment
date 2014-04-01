@@ -4,15 +4,21 @@ var scene 			= new THREE.Scene(),
     clock 			= new THREE.Clock(),
     sphereGeometry 	= new THREE.IcosahedronGeometry( 2, 2 ),
     cubeGeometry 	= new THREE.CubeGeometry( 1, 1, 1 ),
-    material 		= new THREE.MeshBasicMaterial({color: 0xdddddd, wireframe:true}),
+    material 		= new THREE.MeshBasicMaterial({color: 0xcccccc, wireframe:true}),
     sphere 			= new THREE.Mesh(sphereGeometry, material),
     cube 			= new THREE.Mesh(cubeGeometry, material);
-	particleCount = 1800,
-    particles = new THREE.Geometry(),
-    pMaterial = new THREE.ParticleBasicMaterial({
-      color: 0xFFFFFF,
-      size: 20
-    }),
+	particleCount 	= 1800,
+    particles 		= new THREE.Geometry(),
+    pMaterial 		= new THREE.ParticleBasicMaterial({
+						color: 0xFFFFFF,
+						size: 15,
+						map: THREE.ImageUtils.loadTexture(
+							"img/fred.jpg"
+						),
+						blending: THREE.AdditiveBlending,
+						transparent: true
+					}),
+    particleSystem 	= null,
 	context 		= new webkitAudioContext(),
 	analyser 		= context.createAnalyser(),
 	volume 			= context.createGain();
@@ -37,17 +43,17 @@ function init() {
 		var pX = Math.random() * 500 - 250,
 		    pY = Math.random() * 500 - 250,
 		    pZ = Math.random() * 500 - 250,
-		    particle = new THREE.Vertex(
-		    	new THREE.Vector3(pX, pY, pZ)
-		    );
+		    particle = new THREE.Vector3(pX, pY, pZ);
 
 		// add it to the geometry
 		particles.vertices.push(particle);
 	}
 
-	var particleSystem = new THREE.ParticleSystem(
+	particleSystem = new THREE.ParticleSystem(
 	    particles,
 	    pMaterial);
+
+	particleSystem.sortParticles = true;
 
 	// add it to the scene
 	scene.add(particleSystem);
@@ -123,13 +129,15 @@ function render() {
     camera.position.y = sphere.position.z + 5 * Math.sin( .7 * clock.getElapsedTime() );
     camera.lookAt( cube.position );
     cube.rotation.x += 0.2 / (compute);
-    var test = compute/5 *0xFF | 0;
+    var test = compute/5 *0xCC | 0;
     var grayscale = (test << 16) | (test << 8) | test;
     if(compute < 4) {
-        renderer.setClearColorHex( grayscale , 1 );
+        renderer.setClearColor( grayscale , 1 );
     } else {
-        renderer.setClearColorHex( 0x000000 , 1 );
+        renderer.setClearColor( 0x000000 , 1 );
     }
+
+    particleSystem.rotation.z += 0.01;
 
 	renderer.render(scene, camera);
 }
