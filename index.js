@@ -1,6 +1,6 @@
 var scene 			= new THREE.Scene(),
 	camera 			= new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000),
-	renderer 		= new THREE.WebGLRenderer({alpha: true}),
+	renderer 		= new THREE.WebGLRenderer({alpha: true, preserveDrawingBuffer: true}),
     clock 			= new THREE.Clock(),
     sphereGeometry 	= new THREE.IcosahedronGeometry( 2, 2 ),
     cubeGeometry 	= new THREE.CubeGeometry( 1, 1, 1 ),
@@ -11,17 +11,13 @@ var scene 			= new THREE.Scene(),
     particles 		= new THREE.Geometry(),
     pMaterial 		= new THREE.ParticleBasicMaterial({
 						color: 0xFFFFFF,
-						size: 15,
-						map: THREE.ImageUtils.loadTexture(
-							"img/fred.jpg"
-						),
-						blending: THREE.AdditiveBlending,
-						transparent: true
+						size: 1
 					}),
     particleSystem 	= null,
 	context 		= new webkitAudioContext(),
 	analyser 		= context.createAnalyser(),
-	volume 			= context.createGain();
+	volume 			= context.createGain(),
+	iterator		= 0;
     //renderTarget, effectSave, effectBlend, composer;
 
 var c, ctx, c2, ctx2, v, winWidth, winHeight, vHeight, c2Width, c2Height, ratio, animation;
@@ -30,7 +26,8 @@ var c, ctx, c2, ctx2, v, winWidth, winHeight, vHeight, c2Width, c2Height, ratio,
 function init() {
 	winWidth = window.innerWidth;
 	winHeight = window.innerHeight;
-    renderer.setSize(winWidth, winHeight);
+    renderer.setSize(winWidth/1, winHeight/1);
+    renderer.autoClearColor = false;
     document.body.appendChild(renderer.domElement);
     
     scene.add(sphere);
@@ -58,7 +55,7 @@ function init() {
 	particleSystem.sortParticles = true;
 
 	// add it to the scene
-	//scene.add(particleSystem);
+	scene.add(particleSystem);
 
 	v = document.createElement('video');
 	v.src = 'beast.ogv';
@@ -154,15 +151,18 @@ function startaudio(stream) {
 }
 
 function render() {
+	iterator++;
     /*renderer.clear();
     composer.render(0.1);*/
     requestAnimationFrame(render);
-
     FFTData = new Float32Array(analyser.frequencyBinCount);
     analyser.getFloatFrequencyData(FFTData);
     var compute = Math.abs(FFTData[0]) / 10 ;
     if(compute < 6) {
         sphere.scale.set(compute, compute, compute);
+    }
+    if(iterator % Math.floor(compute) === 0 || iterator % Math.floor(compute/2) === 0) {
+    	renderer.clear();
     }
     camera.position.x = sphere.position.x + 5 * Math.cos( .7 * clock.getElapsedTime() );         
     camera.position.z = sphere.position.z + 5 * Math.sin( .7 * clock.getElapsedTime() );
