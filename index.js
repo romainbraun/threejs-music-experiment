@@ -7,6 +7,12 @@ var scene 			= new THREE.Scene(),
     material 		= new THREE.MeshBasicMaterial({color: 0xdddddd, wireframe:true}),
     sphere 			= new THREE.Mesh(sphereGeometry, material),
     cube 			= new THREE.Mesh(cubeGeometry, material);
+	particleCount = 1800,
+    particles = new THREE.Geometry(),
+    pMaterial = new THREE.ParticleBasicMaterial({
+      color: 0xFFFFFF,
+      size: 20
+    }),
 	context 		= new webkitAudioContext(),
 	analyser 		= context.createAnalyser(),
 	volume 			= context.createGain();
@@ -23,6 +29,28 @@ function init() {
     scene.add(cube);
     
     camera.position.z = 5;
+
+    for (var p = 0; p < particleCount; p++) {
+
+		// create a particle with random
+		// position values, -250 -> 250
+		var pX = Math.random() * 500 - 250,
+		    pY = Math.random() * 500 - 250,
+		    pZ = Math.random() * 500 - 250,
+		    particle = new THREE.Vertex(
+		    	new THREE.Vector3(pX, pY, pZ)
+		    );
+
+		// add it to the geometry
+		particles.vertices.push(particle);
+	}
+
+	var particleSystem = new THREE.ParticleSystem(
+	    particles,
+	    pMaterial);
+
+	// add it to the scene
+	scene.add(particleSystem);
 
     //renderer.autoClear = false;
 
