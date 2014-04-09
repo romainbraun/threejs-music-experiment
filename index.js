@@ -57,6 +57,48 @@ function init() {
 
 	kaleidoPass = new THREE.ShaderPass( THREE.KaleidoShader );
 
+	filmPass = new THREE.ShaderPass( THREE.FilmShader );
+	filmPass.uniforms[ "sCount" ].value = 800;
+	filmPass.uniforms[ "sIntensity" ].value = 0.9;
+	filmPass.uniforms[ "nIntensity" ].value = 0.4;
+
+	dotScreenPass = new THREE.ShaderPass( THREE.DotScreenShader );
+
+	horizontalBlurPass = new THREE.ShaderPass( THREE.HorizontalBlurShader );
+
+	mirrorPass = new THREE.ShaderPass( THREE.MirrorShader );
+				
+	RGBShiftPass = new THREE.ShaderPass( THREE.RGBShiftShader );
+
+	vignettePass = new THREE.ShaderPass( THREE.VignetteShader );
+	vignettePass.uniforms[ "darkness" ].value = 2.0;
+
+	badTVPass = new THREE.ShaderPass( THREE.BadTVShader );
+	staticPass = new THREE.ShaderPass( THREE.StaticShader );
+
+	badTVParams = {
+				mute:true,
+				show: true,
+				distortion: 3.0,
+				distortion2: 1.0,
+				speed: 0.3,
+				rollSpeed: 0.1
+			}
+
+			staticParams = {
+				show: true,
+				amount:0.5,
+				size2:4.0
+			}
+
+	badTVPass.uniforms[ "distortion" ].value = badTVParams.distortion;
+			badTVPass.uniforms[ "distortion2" ].value = badTVParams.distortion2;
+			badTVPass.uniforms[ "speed" ].value = badTVParams.speed;
+			badTVPass.uniforms[ "rollSpeed" ].value = badTVParams.rollSpeed;
+
+			staticPass.uniforms[ "amount" ].value = staticParams.amount;
+			staticPass.uniforms[ "size" ].value = staticParams.size2;
+
 	var renderTargetParameters = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, stencilBuffer: false };
     var width = window.innerWidth, height = window.innerHeight;
     renderTarget = new THREE.WebGLRenderTarget( width, height, renderTargetParameters  );
@@ -65,8 +107,16 @@ function init() {
 
 	composer.addPass( renderPass );
 
-	composer.addPass( kaleidoPass );
+	// composer.addPass( kaleidoPass );
 
+	composer.addPass (vignettePass);
+	// composer.addPass(horizontalBlurPass);
+	composer.addPass(filmPass);
+	composer.addPass(mirrorPass);
+	composer.addPass(dotScreenPass);
+	composer.addPass(RGBShiftPass);
+	composer.addPass( staticPass );
+	composer.addPass( badTVPass );
 	composer.addPass( copyPass );
 	//set last pass in composer chain to renderToScreen
 	copyPass.renderToScreen = true;
@@ -93,7 +143,7 @@ function init() {
 	particleSystem.sortParticles = true;
 
 	// add it to the scene
-	//scene.add(particleSystem);
+	scene.add(particleSystem);
 
 	v = document.createElement('video');
 	v.src = 'beast.ogv';
