@@ -1,6 +1,6 @@
 var scene 			= new THREE.Scene(),
 	camera 			= new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000),
-	renderer 		= new THREE.WebGLRenderer({alpha: true, preserveDrawingBuffer: true}),
+	renderer 		= new THREE.WebGLRenderer({alpha: true, antialias: true}),
     clock 			= new THREE.Clock(),
     sphereGeometry 	= new THREE.IcosahedronGeometry( 2, 2 ),
     cubeGeometry 	= new THREE.CubeGeometry( 1, 1, 1 ),
@@ -14,24 +14,62 @@ var scene 			= new THREE.Scene(),
 						size: 1
 					}),
     particleSystem 	= null,
-	context 		= new webkitAudioContext(),
-	analyser 		= context.createAnalyser(),
-	volume 			= context.createGain(),
 	iterator		= 0;
     //renderTarget, effectSave, effectBlend, composer;
+if (window.webkitAudioContext) {
+	var context	= new webkitAudioContext();
+} else {
+	var context	= new AudioContext();
+}
+var analyser 		= context.createAnalyser();
+var volume 			= context.createGain();
+
+var renderPass, copyPass, kaleidoPass, composer;
 
 var c, ctx, c2, ctx2, v, winWidth, winHeight, vHeight, c2Width, c2Height, ratio, animation;
+
+var lineInPower = .2;
+
+var stats = new Stats();
+stats.setMode(0); // 0: fps, 1: ms
+
+// Align top-left
+stats.domElement.style.position = 'absolute';
+stats.domElement.style.left = '0px';
+stats.domElement.style.top = '0px';
 
 
 function init() {
 	winWidth = window.innerWidth;
 	winHeight = window.innerHeight;
     renderer.setSize(winWidth/1, winHeight/1);
-    renderer.autoClearColor = false;
+    // renderer.autoClearColor = false;
+    renderer.autoClear = false;
     document.body.appendChild(renderer.domElement);
     
     scene.add(sphere);
     scene.add(cube);
+
+    document.body.appendChild( stats.domElement );
+
+    renderPass = new THREE.RenderPass( scene, camera );
+	copyPass = new THREE.ShaderPass( THREE.CopyShader );
+
+	kaleidoPass = new THREE.ShaderPass( THREE.KaleidoShader );
+
+	var renderTargetParameters = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, stencilBuffer: false };
+    var width = window.innerWidth, height = window.innerHeight;
+    renderTarget = new THREE.WebGLRenderTarget( width, height, renderTargetParameters  );
+
+	composer = new THREE.EffectComposer( renderer, renderTarget);
+
+	composer.addPass( renderPass );
+
+	composer.addPass( kaleidoPass );
+
+	composer.addPass( copyPass );
+	//set last pass in composer chain to renderToScreen
+	copyPass.renderToScreen = true;
     
     camera.position.z = 5;
 
@@ -55,7 +93,7 @@ function init() {
 	particleSystem.sortParticles = true;
 
 	// add it to the scene
-	scene.add(particleSystem);
+	//scene.add(particleSystem);
 
 	v = document.createElement('video');
 	v.src = 'beast.ogv';
@@ -69,7 +107,7 @@ function init() {
 
     /*var renderTargetParameters = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBFormat, stencilBuffer: false };
     var width = window.innerWidth, height = window.innerHeight;
-    renderTarget = new THREE.WebGLRenderTarget( width, height, renderTargetParameters  ); //, 
+    renderTarget = new THREE.WebGLRenderTarget( width, height, renderTargetParameters  );
 
     effectSave = new THREE.SavePass( new THREE.WebGLRenderTarget( width, height, renderTargetParameters ) ); //, renderTargetParameters
 
@@ -151,6 +189,7 @@ function startaudio(stream) {
 }
 
 function render() {
+	stats.begin();
 	iterator++;
     /*renderer.clear();
     composer.render(0.1);*/
@@ -162,7 +201,7 @@ function render() {
         sphere.scale.set(compute, compute, compute);
     }
     if(iterator % Math.floor(compute) === 0 || iterator % Math.floor(compute/2) === 0) {
-    	renderer.clear();
+    	//renderer.clear();
     }
     camera.position.x = sphere.position.x + 5 * Math.cos( .7 * clock.getElapsedTime() );         
     camera.position.z = sphere.position.z + 5 * Math.sin( .7 * clock.getElapsedTime() );
@@ -182,7 +221,11 @@ function render() {
     //ctx.drawImage(v, 0, 0, winWidth, vHeight);
     ctx.drawImage(c2, 0, 0, winWidth, vHeight);
 
-	renderer.render(scene, camera);
+	//renderer.render(scene, camera);
+	renderer.clear();
+	renderer.clearColor();
+	composer.render(0.1);
+	stats.end();
 }
 
 function threshold(t) {
