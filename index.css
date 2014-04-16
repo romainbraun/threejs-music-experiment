@@ -1,0 +1,23 @@
+@font-face {
+    font-family: "Nerozero";
+    src: url('zeronero.ttf');
+}
+p {
+	font-family: "Nerozero";
+	z-index: 3;
+	color: #fff;
+	font-size: 210px;
+	display: none;
+}
+.text-holder {
+    position: absolute;
+    width: 1500px;
+    height: 700px;
+    top: 50%;
+    left: 50%;
+    margin-left: -750px; /* margin is -0.5 * dimension */
+    margin-top: -350px; 
+    z-index: 3;
+    text-align: center;
+}​
+

@@ -23,6 +23,7 @@ if (window.webkitAudioContext) {
 	var context	= new AudioContext();
 }
 
+var currentSecond = 0;
 var analyser 		= context.createAnalyser();
 var volume 			= context.createGain();
 
@@ -310,7 +311,16 @@ function render() {
     } else {
         renderer.setClearColor( 0x000000 , 0 );
     }*/
-    console.log(computeHigh);
+
+    if(Math.ceil(clock.getElapsedTime()) % 100 === 0) {
+    	if(Math.ceil(clock.getElapsedTime()) != currentSecond) {
+    		currentSecond = Math.ceil(clock.getElapsedTime());
+    		document.getElementsByClassName('text-holder')[0].children[Math.floor(Math.random()*2)].style.display = "block";
+    	}
+    }else if (Math.ceil(clock.getElapsedTime()- 20)  % 100 === 0) {
+    	document.getElementsByClassName('text-holder')[0].children[0].style.display = "none";
+    	document.getElementsByClassName('text-holder')[0].children[1].style.display = "none";
+    }
 
     if(compute < 4) {
     	mode = Math.ceil(Math.random()*7);
