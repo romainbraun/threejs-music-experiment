@@ -4,9 +4,11 @@ var scene 			= new THREE.Scene(),
     clock 			= new THREE.Clock(),
     sphereGeometry 	= new THREE.IcosahedronGeometry( 2, 2 ),
     cubeGeometry 	= new THREE.CubeGeometry( 1, 1, 1 ),
-    material 		= new THREE.MeshBasicMaterial({color: 0xcccccc, wireframe:true}),
+    planeGeometry	= new THREE.Geometry(),
+    material 		= new THREE.MeshBasicMaterial({color: 0xcccccc, wireframe:true, wireframeLinewidth:2}),
+    lineMaterial	= new THREE.LineBasicMaterial({color: 0xcccccc, opacity: 0.3}),
     sphere 			= new THREE.Mesh(sphereGeometry, material),
-    cube 			= new THREE.Mesh(cubeGeometry, material);
+    cube 			= new THREE.Mesh(cubeGeometry, material),
 	particleCount 	= 1800,
     particles 		= new THREE.Geometry(),
     pMaterial 		= new THREE.ParticleBasicMaterial({
@@ -15,7 +17,9 @@ var scene 			= new THREE.Scene(),
 					}),
     particleSystem 	= null,
     stats 			= null,
-    mode 			= 1;
+    mode 			= 1,
+    geometryMode	= 0,
+    loader 			= new THREE.ColladaLoader();
 
 if (window.webkitAudioContext) {
 	var context	= new webkitAudioContext();
@@ -34,6 +38,8 @@ var c, vhsctx, vhsc2, vhsctx2, vhsv, vhswinWidth, vhswinHeight, vhsvHeight, vhsc
 
 var lineInPower = .2;
 
+var gridSize = 2500, gridStep = 10;
+
 
 function setupStats() {
 	stats = new Stats();
@@ -47,6 +53,10 @@ function setupStats() {
 }
 
 function setupScene() {
+
+	loader.options.convertUpAxis = true;
+
+	scene.fog = new THREE.Fog(0x000000, 10, 100);
 	scene.add(sphere);
     scene.add(cube);
 
@@ -73,6 +83,54 @@ function setupScene() {
 
 	// add it to the scene
 	scene.add(particleSystem);
+
+	for (var i = -gridSize; i < gridSize; i += gridStep) {
+		planeGeometry.vertices.push( new THREE.Vector3( - gridSize, 0, i ) );
+    	planeGeometry.vertices.push( new THREE.Vector3(   gridSize, 0, i ) );
+
+    	planeGeometry.vertices.push( new THREE.Vector3( i, 0, - gridSize ) );
+    	planeGeometry.vertices.push( new THREE.Vector3( i, 0,   gridSize ) );
+	}
+
+	var line = new THREE.Line( planeGeometry, lineMaterial, THREE.LinePieces );
+	scene.add( line );
+	var upperLine = new THREE.Line( planeGeometry, lineMaterial, THREE.LinePieces );
+	upperLine.position.y = 20;
+	scene.add( upperLine );
+
+	loader.load('column.dae', function(collada) {
+		var dae = collada.scene;
+		var object = collada.dae;
+		// var skin = collada.skins[0];
+		console.log(collada);
+		setMaterial(dae, new THREE.MeshBasicMaterial({color: 0xcccccc, wireframe:true}));
+		
+		dae.scale.set(.2,.2,.2);
+		// scene.add(dae);
+		
+		for (var i = 0; i < gridSize; i += gridStep * 5) {
+			var newDae = dae.clone();
+			var leftDae = dae.clone();
+			newDae.position.set(20,0,-i);
+			scene.add(newDae);
+			leftDae.position.set(-20,0,-i);
+			scene.add(leftDae);
+		}
+	});
+
+	sphere.visible = false;
+	cube.visible = false;
+	particleSystem.visible = false;
+
+}
+
+var setMaterial = function(node, material) {
+  node.material = material;
+  if (node.children) {
+    for (var i = 0; i < node.children.length; i++) {
+      setMaterial(node.children[i], material);
+    }
+  }
 }
 
 function setupPostProcessing() {
@@ -295,15 +353,30 @@ function render() {
     analyser.getFloatFrequencyData(FFTData);
     var compute = Math.abs(FFTData[0]) / 10 ;
     var computeHigh = Math.abs(FFTData[512]) / 10;
-    if(compute < 6) {
-        sphere.scale.set(compute, compute, compute);
+    if(geometryMode === 1) {
+    	sphere.visible = true;
+    	cube.visible = true;
+    	particleSystem.visible = true;
+    	if(compute < 6) {
+	        sphere.scale.set(compute, compute, compute);
+	    }
+	    camera.position.x = sphere.position.x + 5 * Math.cos( .7 * clock.getElapsedTime() );         
+	    camera.position.z = sphere.position.z + 5 * Math.sin( .7 * clock.getElapsedTime() );
+	    camera.position.y = sphere.position.z + 5 * Math.sin( .7 * clock.getElapsedTime() );
+	    camera.lookAt( cube.position );
+	    cube.rotation.x += 0.2 / (compute);
+	    particleSystem.rotation.z += 0.01;	
+    }else{
+    	sphere.visible = false;
+    	cube.visible = false;
+    	particleSystem.visible = false;
+    	camera.position.y = 10;
+    	camera.position.z -= .8;
+    	camera.rotation.z +=.005;
+    	camera.rotation.y +=.002;
+    	camera.rotation.x +=.002;
     }
-    camera.position.x = sphere.position.x + 5 * Math.cos( .7 * clock.getElapsedTime() );         
-    camera.position.z = sphere.position.z + 5 * Math.sin( .7 * clock.getElapsedTime() );
-    camera.position.y = sphere.position.z + 5 * Math.sin( .7 * clock.getElapsedTime() );
-    camera.lookAt( cube.position );
-    cube.rotation.x += 0.2 / (compute);
-    particleSystem.rotation.z += 0.01;
+    
     /*var test = compute/5 *0xFF | 0;
     var grayscale = (test << 16) | (test << 8) | test;
     if(compute < 4) {
@@ -312,17 +385,18 @@ function render() {
         renderer.setClearColor( 0x000000 , 0 );
     }*/
 
-    if(Math.ceil(clock.getElapsedTime()) % 100 === 0) {
+    if(Math.ceil(clock.getElapsedTime()) % 20 === 0) {
     	if(Math.ceil(clock.getElapsedTime()) != currentSecond) {
     		currentSecond = Math.ceil(clock.getElapsedTime());
+    		geometryMode = Math.ceil(Math.random()*2);
     		document.getElementsByClassName('text-holder')[0].children[Math.floor(Math.random()*2)].style.display = "block";
     	}
-    }else if (Math.ceil(clock.getElapsedTime()- 20)  % 100 === 0) {
+    }else if (Math.ceil(clock.getElapsedTime()- 10)  % 20 === 0) {
     	document.getElementsByClassName('text-holder')[0].children[0].style.display = "none";
     	document.getElementsByClassName('text-holder')[0].children[1].style.display = "none";
     }
 
-    if(compute < 4) {
+    if(compute < 8) {
     	mode = Math.ceil(Math.random()*7);
     	changePostProcessing();
     }
