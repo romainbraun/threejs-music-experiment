@@ -14,45 +14,68 @@ var scene 			= new THREE.Scene(),
 						size: 1
 					}),
     particleSystem 	= null,
-	iterator		= 0;
-    //renderTarget, effectSave, effectBlend, composer;
+    stats 			= null,
+    mode 			= 1;
+
 if (window.webkitAudioContext) {
 	var context	= new webkitAudioContext();
 } else {
 	var context	= new AudioContext();
 }
+
 var analyser 		= context.createAnalyser();
 var volume 			= context.createGain();
 
 var renderPass, copyPass, kaleidoPass, composer;
 
 var c, ctx, c2, ctx2, v, winWidth, winHeight, vHeight, c2Width, c2Height, ratio, animation;
+var c, vhsctx, vhsc2, vhsctx2, vhsv, vhswinWidth, vhswinHeight, vhsvHeight, vhsc2Width, vhsc2Height, vhsratio, vhsanimation;
 
 var lineInPower = .2;
 
-var stats = new Stats();
-stats.setMode(0); // 0: fps, 1: ms
 
-// Align top-left
-stats.domElement.style.position = 'absolute';
-stats.domElement.style.left = '0px';
-stats.domElement.style.top = '0px';
+function setupStats() {
+	stats = new Stats();
+	stats.setMode(0); // 0: fps, 1: ms
+	// Align top-left
+	stats.domElement.style.position = 'absolute';
+	stats.domElement.style.left = '0px';
+	stats.domElement.style.top = '0px';
 
+	document.body.appendChild( stats.domElement );
+}
 
-function init() {
-	winWidth = window.innerWidth;
-	winHeight = window.innerHeight;
-    renderer.setSize(winWidth/1, winHeight/1);
-    // renderer.autoClearColor = false;
-    renderer.autoClear = false;
-    document.body.appendChild(renderer.domElement);
-    
-    scene.add(sphere);
+function setupScene() {
+	scene.add(sphere);
     scene.add(cube);
 
-    document.body.appendChild( stats.domElement );
+    camera.position.z = 5;
 
-    renderPass = new THREE.RenderPass( scene, camera );
+    for (var p = 0; p < particleCount; p++) {
+
+		// create a particle with random
+		// position values, -250 -> 250
+		var pX = Math.random() * 500 - 250,
+		    pY = Math.random() * 500 - 250,
+		    pZ = Math.random() * 500 - 250,
+		    particle = new THREE.Vector3(pX, pY, pZ);
+
+		// add it to the geometry
+		particles.vertices.push(particle);
+	}
+
+	particleSystem = new THREE.ParticleSystem(
+	    particles,
+	    pMaterial);
+
+	particleSystem.sortParticles = true;
+
+	// add it to the scene
+	scene.add(particleSystem);
+}
+
+function setupPostProcessing() {
+	renderPass = new THREE.RenderPass( scene, camera );
 	copyPass = new THREE.ShaderPass( THREE.CopyShader );
 
 	kaleidoPass = new THREE.ShaderPass( THREE.KaleidoShader );
@@ -87,7 +110,7 @@ function init() {
 
 			staticParams = {
 				show: true,
-				amount:0.5,
+				amount:1,
 				size2:4.0
 			}
 
@@ -98,6 +121,7 @@ function init() {
 
 			staticPass.uniforms[ "amount" ].value = staticParams.amount;
 			staticPass.uniforms[ "size" ].value = staticParams.size2;
+			
 
 	var renderTargetParameters = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, stencilBuffer: false };
     var width = window.innerWidth, height = window.innerHeight;
@@ -106,45 +130,49 @@ function init() {
 	composer = new THREE.EffectComposer( renderer, renderTarget);
 
 	composer.addPass( renderPass );
-
-	// composer.addPass( kaleidoPass );
-
 	composer.addPass (vignettePass);
-	// composer.addPass(horizontalBlurPass);
-	composer.addPass(filmPass);
-	composer.addPass(mirrorPass);
-	composer.addPass(dotScreenPass);
-	composer.addPass(RGBShiftPass);
-	composer.addPass( staticPass );
-	composer.addPass( badTVPass );
 	composer.addPass( copyPass );
 	//set last pass in composer chain to renderToScreen
 	copyPass.renderToScreen = true;
-    
-    camera.position.z = 5;
+}
 
-    for (var p = 0; p < particleCount; p++) {
-
-		// create a particle with random
-		// position values, -250 -> 250
-		var pX = Math.random() * 500 - 250,
-		    pY = Math.random() * 500 - 250,
-		    pZ = Math.random() * 500 - 250,
-		    particle = new THREE.Vector3(pX, pY, pZ);
-
-		// add it to the geometry
-		particles.vertices.push(particle);
+function changePostProcessing() {
+	composer = new THREE.EffectComposer( renderer, renderTarget);
+	composer.addPass( renderPass );
+	composer.addPass (vignettePass);
+	if (mode === 1) {
+		composer.addPass( kaleidoPass );
+		composer.addPass(filmPass);
+	} else if (mode === 2) {
+		composer.addPass(mirrorPass);
+		composer.addPass(RGBShiftPass);
+	} else if (mode === 3) {
+		composer.addPass(badTVPass);
+		composer.addPass(RGBShiftPass);
+	} else if (mode === 4) {
+		composer.addPass(dotScreenPass);
+		composer.addPass(RGBShiftPass);
+	} else if (mode === 5) {
+		composer.addPass(filmPass);
+	} else if (mode === 6) {
+		composer.addPass(kaleidoPass);
+		composer.addPass(mirrorPass);
+		composer.addPass(badTVPass);
 	}
 
-	particleSystem = new THREE.ParticleSystem(
-	    particles,
-	    pMaterial);
+	// composer.addPass(horizontalBlurPass);
+	// composer.addPass(filmPass);
+	// composer.addPass(mirrorPass);
+	// composer.addPass(dotScreenPass);
+	// composer.addPass(RGBShiftPass);
+	// composer.addPass( badTVPass );
+	// composer.addPass( staticPass );
+	composer.addPass( copyPass );
+	//set last pass in composer chain to renderToScreen
+	copyPass.renderToScreen = true;
+}
 
-	particleSystem.sortParticles = true;
-
-	// add it to the scene
-	scene.add(particleSystem);
-
+function setupVideo() {
 	v = document.createElement('video');
 	v.src = 'beast.ogv';
 	v.autoplay = true;
@@ -152,38 +180,33 @@ function init() {
 	v.muted = true;
 
 	v.addEventListener("loadedmetadata", vidLoaded, false);
+}
 
-    //renderer.autoClear = false;
+function setupVHS() {
+	vhsv = document.createElement('video');
+	vhsv.src = 'vhs.webm';
+	vhsv.autoplay = true;
+	vhsv.loop = true;
+	vhsv.muted = true;
 
-    /*var renderTargetParameters = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBFormat, stencilBuffer: false };
-    var width = window.innerWidth, height = window.innerHeight;
-    renderTarget = new THREE.WebGLRenderTarget( width, height, renderTargetParameters  );
+	vhsv.addEventListener("loadedmetadata", vhsLoaded, false);
+}
 
-    effectSave = new THREE.SavePass( new THREE.WebGLRenderTarget( width, height, renderTargetParameters ) ); //, renderTargetParameters
+function init() {
+	setupStats();
 
-    effectBlend = new THREE.ShaderPass( THREE.BlendShader, "tDiffuse1" );
+	winWidth = window.innerWidth;
+	winHeight = window.innerHeight;
+    renderer.setSize(winWidth/1, winHeight/1);
+    // renderer.autoClearColor = false;
+    renderer.autoClear = false;
+    document.body.appendChild(renderer.domElement);
 
-    effectBlend.uniforms[ 'tDiffuse2' ].value = effectSave.renderTarget;
-    effectBlend.uniforms[ 'mixRatio' ].value = 0.7;
+    setupScene();
+    setupPostProcessing();
+    setupVideo();
+    setupVHS();
 
-    composer = new THREE.EffectComposer( renderer, renderTarget );
-
-    var renderModel = new THREE.RenderPass( scene, camera );
-
-    var effectVignette = new THREE.ShaderPass( THREE.VignetteShader );
-
-    effectVignette.uniforms[ "offset" ].value = 1.05;
-    effectVignette.uniforms[ "darkness" ].value = 0.8;
-
-    effectVignette.renderToScreen = true;
-
-    composer.addPass( renderModel );
-
-    composer.addPass( effectBlend );
-    composer.addPass( effectSave );
-    composer.addPass( effectVignette );
-
-    renderer.clear();*/
     initUserMedia();
 }
 
@@ -194,6 +217,15 @@ function vidLoaded() {
 	v.height = vHeight;
 
 	createCanvas();
+}
+
+function vhsLoaded() {
+	vhsratio = vhsv.videoHeight / vhsv.videoWidth;
+	vhsvHeight = winWidth * vhsratio;
+	vhsv.width = winWidth;
+	vhsv.height = vhsvHeight;
+
+	createVhsCanvas();
 }
 
 function createCanvas() {
@@ -218,6 +250,21 @@ function createCanvas() {
 	render();
 }
 
+function createVhsCanvas() {
+	vhsc = document.createElement('canvas');
+	vhsctx = vhsc.getContext('2d');
+	vhsc.width = winWidth;
+	vhsc.height = winHeight;
+	vhsc.style.position = 'absolute';
+	vhsc.style.top = 0;
+	vhsc.style.left = 0;
+	vhsc.style.zIndex = 1;
+	vhsc.id = "vhs";
+
+	document.body.appendChild(vhsc);
+
+}
+
 function initUserMedia() {
 	navigator.getUserMedia_ = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
 	
@@ -240,24 +287,22 @@ function startaudio(stream) {
 
 function render() {
 	stats.begin();
-	iterator++;
-    /*renderer.clear();
-    composer.render(0.1);*/
+
     requestAnimationFrame(render);
+
     FFTData = new Float32Array(analyser.frequencyBinCount);
     analyser.getFloatFrequencyData(FFTData);
     var compute = Math.abs(FFTData[0]) / 10 ;
+    var computeHigh = Math.abs(FFTData[512]) / 10;
     if(compute < 6) {
         sphere.scale.set(compute, compute, compute);
-    }
-    if(iterator % Math.floor(compute) === 0 || iterator % Math.floor(compute/2) === 0) {
-    	//renderer.clear();
     }
     camera.position.x = sphere.position.x + 5 * Math.cos( .7 * clock.getElapsedTime() );         
     camera.position.z = sphere.position.z + 5 * Math.sin( .7 * clock.getElapsedTime() );
     camera.position.y = sphere.position.z + 5 * Math.sin( .7 * clock.getElapsedTime() );
     camera.lookAt( cube.position );
     cube.rotation.x += 0.2 / (compute);
+    particleSystem.rotation.z += 0.01;
     /*var test = compute/5 *0xFF | 0;
     var grayscale = (test << 16) | (test << 8) | test;
     if(compute < 4) {
@@ -265,11 +310,22 @@ function render() {
     } else {
         renderer.setClearColor( 0x000000 , 0 );
     }*/
+    console.log(computeHigh);
 
-    particleSystem.rotation.z += 0.01;
+    if(compute < 4) {
+    	mode = Math.ceil(Math.random()*7);
+    	changePostProcessing();
+    }
+
+    if(computeHigh < 6 ) {
+    	vhsc.style.opacity = 0.5;
+    }else {
+    	vhsc.style.opacity = 0;
+    }
+
     threshold(Math.exp(compute*1.3));
-    //ctx.drawImage(v, 0, 0, winWidth, vHeight);
     ctx.drawImage(c2, 0, 0, winWidth, vHeight);
+    vhsctx.drawImage(vhsv, 0, 0, winWidth, vHeight);
 
 	//renderer.render(scene, camera);
 	renderer.clear();
